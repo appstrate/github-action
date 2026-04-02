@@ -1,0 +1,68 @@
+name: "Appstrate Agent"
+description: "Run an Appstrate AI agent on your code"
+branding:
+  icon: "cpu"
+  color: "purple"
+
+inputs:
+  appstrate-url:
+    description: "Appstrate instance URL (e.g. https://app.appstrate.dev)"
+    required: true
+  appstrate-api-key:
+    description: "Appstrate API key (ask_...)"
+    required: true
+  agent:
+    description: "Agent to run (@scope/name)"
+    required: true
+  agent-version:
+    description: "Agent version, dist-tag, or semver range (default: latest)"
+    required: false
+  input:
+    description: "Agent input as JSON string"
+    required: false
+  config:
+    description: "Agent config as JSON string"
+    required: false
+  timeout:
+    description: "Max wait time in seconds (default: 300)"
+    required: false
+    default: "300"
+  output-mode:
+    description: "How to report results: check, comment, annotations, full, none (default: full)"
+    required: false
+    default: "full"
+  fail-on:
+    description: "When to fail the CI step: fail, warning, never (default: fail)"
+    required: false
+    default: "fail"
+  verdict-path:
+    description: "Dot-path to verdict field in agent output (e.g. verdict)"
+    required: false
+  summary-path:
+    description: "Dot-path to summary field in agent output (e.g. summary)"
+    required: false
+  annotations-path:
+    description: "Dot-path to annotations array in agent output (e.g. findings)"
+    required: false
+  max-diff-size:
+    description: "Max diff size in characters before truncation (default: 200000)"
+    required: false
+    default: "200000"
+  github-token:
+    description: "GitHub token for PR comments and check runs (default: github.token)"
+    required: false
+    default: "${{ github.token }}"
+
+outputs:
+  run-id:
+    description: "Appstrate run ID"
+  status:
+    description: "Run status (success, failed, timeout, cancelled)"
+  result:
+    description: "Agent result as JSON string"
+  duration:
+    description: "Run duration in milliseconds"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"

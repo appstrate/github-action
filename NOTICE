@@ -1,0 +1,9 @@
+Appstrate GitHub Action
+Copyright 2025 Appstrate
+
+This product includes software developed by Appstrate (https://appstrate.dev).
+
+This product includes the following third-party software:
+
+- @actions/core - MIT License - Copyright GitHub, Inc.
+- @actions/github - MIT License - Copyright GitHub, Inc.

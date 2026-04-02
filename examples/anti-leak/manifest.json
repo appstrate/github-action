@@ -1,0 +1,76 @@
+{
+  "name": "@appstrate/anti-leak",
+  "version": "1.0.0",
+  "type": "agent",
+  "schemaVersion": "1.0",
+  "displayName": "Anti-Leak Code Review",
+  "description": "Detects secrets, credentials, and sensitive data leaks in pull request diffs",
+  "timeout": 120,
+  "dependencies": {
+    "providers": {
+      "@appstrate/github": "^1.0.0"
+    }
+  },
+  "providersConfiguration": {
+    "@appstrate/github": {
+      "scopes": ["repo"]
+    }
+  },
+  "input": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "pullRequest": {
+          "type": "object",
+          "description": "Pull request metadata"
+        },
+        "diff": {
+          "type": "string",
+          "description": "Unified diff of all changed files"
+        },
+        "files": {
+          "type": "array",
+          "description": "List of changed files with patches",
+          "items": {
+            "type": "object"
+          }
+        },
+        "repo": {
+          "type": "object",
+          "description": "Repository metadata"
+        }
+      },
+      "required": ["diff", "files"]
+    }
+  },
+  "output": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": ["pass", "fail", "warning"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "Markdown summary of findings"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "line": { "type": "integer" },
+              "level": { "type": "string", "enum": ["error", "warning", "notice"] },
+              "title": { "type": "string" },
+              "message": { "type": "string" }
+            },
+            "required": ["path", "line", "level", "message"]
+          }
+        }
+      },
+      "required": ["verdict", "summary", "findings"]
+    }
+  }
+}

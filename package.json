@@ -1,0 +1,46 @@
+{
+  "name": "@appstrate/github-action",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Run Appstrate AI agents in GitHub Actions",
+  "license": "Apache-2.0",
+  "author": "Appstrate <hello@appstrate.dev>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/appstrate/github-action.git"
+  },
+  "bugs": {
+    "url": "https://github.com/appstrate/github-action/issues"
+  },
+  "homepage": "https://github.com/appstrate/github-action#readme",
+  "keywords": [
+    "github-action",
+    "appstrate",
+    "ai-agents",
+    "code-review",
+    "ci-cd"
+  ],
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "ncc build src/index.ts -o dist --source-map --license licenses.txt",
+    "check": "tsc --noEmit",
+    "lint": "eslint src/ test/",
+    "format": "prettier --check src/ test/",
+    "format:fix": "prettier --write src/ test/",
+    "test": "bun test test/unit/",
+    "precheck": "bun run lint && bun run format"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@vercel/ncc": "^0.38.3",
+    "eslint": "^9.0.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}
