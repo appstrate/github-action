@@ -32,7 +32,7 @@ inputs:
     required: false
     default: "full"
   fail-on:
-    description: "When to fail the CI step: fail, warning, never (default: fail)"
+    description: "When to fail the CI step: fail (or error/errors), warning (or warnings), never (or none). Default: fail"
     required: false
     default: "fail"
   verdict-path:

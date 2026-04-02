@@ -31719,9 +31719,19 @@ function getInputs() {
     if (!validModes.includes(outputMode)) {
         throw new Error(`output-mode must be one of: ${validModes.join(", ")}`);
     }
-    const failOn = (core.getInput("fail-on") || "fail");
-    if (!["fail", "warning", "never"].includes(failOn)) {
-        throw new Error("fail-on must be one of: fail, warning, never");
+    const failOnRaw = core.getInput("fail-on") || "fail";
+    const failOnAliases = {
+        fail: "fail",
+        error: "fail",
+        errors: "fail",
+        warning: "warning",
+        warnings: "warning",
+        never: "never",
+        none: "never",
+    };
+    const failOn = failOnAliases[failOnRaw];
+    if (!failOn) {
+        throw new Error(`fail-on must be one of: fail, warning, never (got "${failOnRaw}")`);
     }
     const mapping = {
         verdictPath: core.getInput("verdict-path") || undefined,
