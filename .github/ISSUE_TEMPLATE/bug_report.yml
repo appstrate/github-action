@@ -1,0 +1,32 @@
+name: Bug Report
+description: Report a bug with the Appstrate GitHub Action
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow YAML
+      description: Paste your workflow configuration
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Action Logs
+      description: Paste relevant logs from the GitHub Actions run
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Action Version
+      description: "e.g. v1, v1.2.0"
+    validations:
+      required: true

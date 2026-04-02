@@ -1,0 +1,26 @@
+# Example GitHub Actions workflow using the anti-leak agent
+# Copy this to .github/workflows/anti-leak.yml in your repository
+
+name: Anti-Leak Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  anti-leak:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: appstrate/github-action@v1
+        with:
+          appstrate-url: ${{ secrets.APPSTRATE_URL }}
+          appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
+          agent: "@appstrate/anti-leak"
+          output-mode: "full"
+          fail-on: "fail"
+          verdict-path: "verdict"
+          summary-path: "summary"
+          annotations-path: "findings"

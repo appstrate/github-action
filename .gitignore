@@ -1,0 +1,10 @@
+node_modules/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+coverage/
+.vscode/
+.idea/
+*.swp
+*.swo
