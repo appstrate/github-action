@@ -37,7 +37,7 @@
           "description": "Default branch name (e.g. main)"
         },
         "prNumber": {
-          "type": "integer",
+          "type": "number",
           "description": "Pull request number"
         },
         "prTitle": {
@@ -98,7 +98,7 @@
             "type": "object",
             "properties": {
               "path": { "type": "string" },
-              "line": { "type": "integer" },
+              "line": { "type": "number" },
               "level": { "type": "string", "enum": ["error", "warning", "notice"] },
               "title": { "type": "string" },
               "message": { "type": "string" }
