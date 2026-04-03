@@ -31785,7 +31785,7 @@ class AppstrateClient {
     }
     /** Trigger an agent run. Returns the run ID. */
     async triggerRun(scope, name, options) {
-        const url = new URL(`/api/agents/${encodeURIComponent(scope)}/${encodeURIComponent(name)}/run`, this.baseUrl);
+        const url = new URL(`/api/agents/${scope}/${encodeURIComponent(name)}/run`, this.baseUrl);
         if (options?.version) {
             url.searchParams.set("version", options.version);
         }
