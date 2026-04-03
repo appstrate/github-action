@@ -36,10 +36,7 @@ export class AppstrateClient {
       config?: Record<string, unknown>;
     }
   ): Promise<string> {
-    const url = new URL(
-      `/api/agents/${encodeURIComponent(scope)}/${encodeURIComponent(name)}/run`,
-      this.baseUrl
-    );
+    const url = new URL(`/api/agents/${scope}/${encodeURIComponent(name)}/run`, this.baseUrl);
     if (options?.version) {
       url.searchParams.set("version", options.version);
     }
