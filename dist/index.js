@@ -31851,33 +31851,48 @@ var github = __nccwpck_require__(3228);
 
 
 /**
- * Collect PR metadata and changed file list via the GitHub API.
+ * Collect PR metadata, changed file list, and comments via the GitHub API.
+ * Supports both `pull_request` and `issue_comment` events.
  * Does NOT fetch patches/diffs — the agent should fetch those itself
  * via the GitHub provider to avoid env var size limits.
  * Returns null if not in a PR context.
  */
 async function collectPRContext(token) {
     const { context } = github;
-    if (context.eventName !== "pull_request" && context.eventName !== "pull_request_target") {
-        core.info("Not a pull_request event, skipping PR context collection");
-        return null;
-    }
-    const pr = context.payload.pull_request;
-    if (!pr) {
-        core.warning("pull_request event but no PR payload found");
+    const supportedEvents = ["pull_request", "pull_request_target", "issue_comment"];
+    if (!supportedEvents.includes(context.eventName)) {
+        core.info(`Event "${context.eventName}" is not PR-related, skipping PR context collection`);
         return null;
     }
     const octokit = github.getOctokit(token);
     const owner = context.repo.owner;
     const repo = context.repo.repo;
-    // Fetch changed files (metadata only, no patches)
-    core.info(`Fetching changed files for PR #${pr.number}...`);
-    const files = await fetchAllFiles(octokit, owner, repo, pr.number);
-    // Get repo info
-    const { data: repoData } = await octokit.rest.repos.get({ owner, repo });
-    return {
-        pullRequest: {
-            number: pr.number,
+    // Resolve PR data depending on event type
+    let prNumber;
+    let prData;
+    let triggerComment;
+    if (context.eventName === "issue_comment") {
+        // issue_comment on a PR: payload has issue (not pull_request)
+        const issue = context.payload.issue;
+        if (!issue?.pull_request) {
+            core.info("issue_comment on a non-PR issue, skipping");
+            return null;
+        }
+        prNumber = issue.number;
+        // Capture the comment that triggered this run
+        const comment = context.payload.comment;
+        if (comment) {
+            triggerComment = {
+                id: comment.id,
+                author: comment.user?.login ?? "",
+                body: comment.body ?? "",
+                createdAt: comment.created_at ?? "",
+            };
+        }
+        // Fetch full PR data (issue_comment payload doesn't include PR details)
+        core.info(`Fetching PR #${prNumber} details (triggered by comment)...`);
+        const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+        prData = {
             title: pr.title ?? "",
             body: pr.body ?? "",
             author: pr.user?.login ?? "",
@@ -31886,7 +31901,36 @@ async function collectPRContext(token) {
             headSha: pr.head?.sha ?? context.sha,
             url: pr.html_url ?? "",
             draft: pr.draft ?? false,
-        },
+        };
+    }
+    else {
+        // pull_request or pull_request_target
+        const pr = context.payload.pull_request;
+        if (!pr) {
+            core.warning("pull_request event but no PR payload found");
+            return null;
+        }
+        prNumber = pr.number;
+        prData = {
+            title: pr.title ?? "",
+            body: pr.body ?? "",
+            author: pr.user?.login ?? "",
+            base: pr.base?.ref ?? "",
+            head: pr.head?.ref ?? "",
+            headSha: pr.head?.sha ?? context.sha,
+            url: pr.html_url ?? "",
+            draft: pr.draft ?? false,
+        };
+    }
+    // Fetch changed files and comments in parallel
+    core.info(`Fetching changed files and comments for PR #${prNumber}...`);
+    const [files, comments, repoData] = await Promise.all([
+        fetchAllFiles(octokit, owner, repo, prNumber),
+        fetchComments(octokit, owner, repo, prNumber),
+        octokit.rest.repos.get({ owner, repo }).then((r) => r.data),
+    ]);
+    return {
+        pullRequest: { number: prNumber, ...prData },
         files: files.map((f) => ({
             path: f.path,
             status: f.status,
@@ -31894,12 +31938,15 @@ async function collectPRContext(token) {
             deletions: f.deletions,
             previousPath: f.previousPath,
         })),
+        comments,
         repo: {
             owner,
             name: repo,
             fullName: `${owner}/${repo}`,
             defaultBranch: repoData.default_branch,
         },
+        triggerEvent: context.eventName,
+        triggerComment,
     };
 }
 async function fetchAllFiles(octokit, owner, repo, prNumber) {
@@ -31929,6 +31976,32 @@ async function fetchAllFiles(octokit, owner, repo, prNumber) {
     core.info(`Collected ${files.length} changed files`);
     return files;
 }
+async function fetchComments(octokit, owner, repo, prNumber) {
+    const comments = [];
+    let page = 1;
+    while (true) {
+        const { data } = await octokit.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+            page,
+        });
+        for (const c of data) {
+            comments.push({
+                id: c.id,
+                author: c.user?.login ?? "",
+                body: c.body ?? "",
+                createdAt: c.created_at ?? "",
+            });
+        }
+        if (data.length < 100)
+            break;
+        page++;
+    }
+    core.info(`Collected ${comments.length} PR comments`);
+    return comments;
+}
 
 ;// CONCATENATED MODULE: ./src/report.ts
 // SPDX-License-Identifier: Apache-2.0
@@ -31940,15 +32013,31 @@ async function report(token, run, agentName, outputMode, mapping) {
     if (outputMode === "none")
         return;
     const { context } = github;
-    if (context.eventName !== "pull_request" && context.eventName !== "pull_request_target") {
+    const supportedEvents = ["pull_request", "pull_request_target", "issue_comment"];
+    if (!supportedEvents.includes(context.eventName)) {
         core.info("Not a PR context, skipping GitHub reporting");
         return;
     }
     const octokit = github.getOctokit(token);
     const owner = context.repo.owner;
     const repo = context.repo.repo;
-    const sha = context.payload.pull_request?.head?.sha ?? context.sha;
-    const prNumber = context.payload.pull_request?.number;
+    // Resolve SHA and PR number depending on event type
+    let sha;
+    let prNumber;
+    if (context.eventName === "issue_comment") {
+        prNumber = context.payload.issue?.number;
+        if (!prNumber || !context.payload.issue?.pull_request) {
+            core.info("issue_comment on a non-PR issue, skipping GitHub reporting");
+            return;
+        }
+        // Fetch the PR head SHA (not available in issue_comment payload)
+        const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+        sha = pr.head.sha;
+    }
+    else {
+        sha = context.payload.pull_request?.head?.sha ?? context.sha;
+        prNumber = context.payload.pull_request?.number;
+    }
     // Extract structured data from agent result
     const verdict = extractVerdict(run, mapping.verdictPath);
     const summary = extractSummary(run, mapping.summaryPath, agentName);
@@ -32269,7 +32358,7 @@ async function run() {
     // renders them correctly (nested objects would show as [object Object]).
     let agentInput;
     if (prContext) {
-        const { pullRequest: pr, repo, files } = prContext;
+        const { pullRequest: pr, repo, files, comments, triggerEvent, triggerComment } = prContext;
         agentInput = {
             repoOwner: repo.owner,
             repoName: repo.name,
@@ -32285,6 +32374,14 @@ async function run() {
             prUrl: pr.url,
             prDraft: pr.draft,
             changedFiles: files.map((f) => f.path).join("\n"),
+            triggerEvent,
+            comments: comments.map((c) => `[${c.author} @ ${c.createdAt}]\n${c.body}`).join("\n---\n"),
+            ...(triggerComment
+                ? {
+                    triggerCommentAuthor: triggerComment.author,
+                    triggerCommentBody: triggerComment.body,
+                }
+                : {}),
             ...inputs.input,
         };
     }

@@ -37,7 +37,8 @@ export async function report(
   if (outputMode === "none") return;
 
   const { context } = github;
-  if (context.eventName !== "pull_request" && context.eventName !== "pull_request_target") {
+  const supportedEvents = ["pull_request", "pull_request_target", "issue_comment"];
+  if (!supportedEvents.includes(context.eventName)) {
     core.info("Not a PR context, skipping GitHub reporting");
     return;
   }
@@ -45,8 +46,24 @@ export async function report(
   const octokit = github.getOctokit(token);
   const owner = context.repo.owner;
   const repo = context.repo.repo;
-  const sha = context.payload.pull_request?.head?.sha ?? context.sha;
-  const prNumber = context.payload.pull_request?.number;
+
+  // Resolve SHA and PR number depending on event type
+  let sha: string;
+  let prNumber: number | undefined;
+
+  if (context.eventName === "issue_comment") {
+    prNumber = context.payload.issue?.number;
+    if (!prNumber || !context.payload.issue?.pull_request) {
+      core.info("issue_comment on a non-PR issue, skipping GitHub reporting");
+      return;
+    }
+    // Fetch the PR head SHA (not available in issue_comment payload)
+    const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    sha = pr.head.sha;
+  } else {
+    sha = context.payload.pull_request?.head?.sha ?? context.sha;
+    prNumber = context.payload.pull_request?.number;
+  }
 
   // Extract structured data from agent result
   const verdict = extractVerdict(run, mapping.verdictPath);

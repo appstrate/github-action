@@ -108,12 +108,20 @@ describe("determineShouldFail", () => {
   });
 
   it("fails when verdict path is set but field is missing from result", () => {
-    const run: RunResult = { status: "success", result: { output: { summary: "ok" } }, error: null };
+    const run: RunResult = {
+      status: "success",
+      result: { output: { summary: "ok" } },
+      error: null,
+    };
     expect(determineShouldFail(run, "fail", "output.verdict")).toContain("missing verdict field");
   });
 
   it("fails when verdict path is set but field is null", () => {
-    const run: RunResult = { status: "success", result: { output: { verdict: null } }, error: null };
+    const run: RunResult = {
+      status: "success",
+      result: { output: { verdict: null } },
+      error: null,
+    };
     expect(determineShouldFail(run, "fail", "output.verdict")).toContain("missing verdict field");
   });
 

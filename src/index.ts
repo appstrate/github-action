@@ -29,7 +29,7 @@ async function run(): Promise<void> {
   // renders them correctly (nested objects would show as [object Object]).
   let agentInput: Record<string, unknown> | undefined;
   if (prContext) {
-    const { pullRequest: pr, repo, files } = prContext;
+    const { pullRequest: pr, repo, files, comments, triggerEvent, triggerComment } = prContext;
     agentInput = {
       repoOwner: repo.owner,
       repoName: repo.name,
@@ -45,6 +45,14 @@ async function run(): Promise<void> {
       prUrl: pr.url,
       prDraft: pr.draft,
       changedFiles: files.map((f) => f.path).join("\n"),
+      triggerEvent,
+      comments: comments.map((c) => `[${c.author} @ ${c.createdAt}]\n${c.body}`).join("\n---\n"),
+      ...(triggerComment
+        ? {
+            triggerCommentAuthor: triggerComment.author,
+            triggerCommentBody: triggerComment.body,
+          }
+        : {}),
       ...inputs.input,
     };
   } else {
