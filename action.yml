@@ -36,8 +36,9 @@ inputs:
     required: false
     default: "fail"
   verdict-path:
-    description: "Dot-path to verdict field in agent output (e.g. verdict)"
+    description: "Dot-path to verdict field in agent output (default: output.verdict)"
     required: false
+    default: "output.verdict"
   summary-path:
     description: "Dot-path to summary field in agent output (e.g. summary)"
     required: false

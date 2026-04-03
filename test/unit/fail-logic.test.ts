@@ -27,8 +27,21 @@ function determineShouldFail(
   if (result.status === "timeout") return "Agent run timed out";
   if (result.status === "cancelled") return "Agent run was cancelled";
 
-  if (verdictPath && result.result) {
+  if (result.status === "failed") {
+    return result.error || "Agent run failed";
+  }
+
+  if (verdictPath) {
+    if (!result.result) {
+      return "Agent produced no result (expected verdict at: " + verdictPath + ")";
+    }
+
     const verdict = getNestedValue(result.result, verdictPath);
+
+    if (verdict === undefined || verdict === null) {
+      return "Agent result missing verdict field (expected at: " + verdictPath + ")";
+    }
+
     if (typeof verdict === "string") {
       if (verdict === "fail" || verdict === "failed" || verdict === "failure") {
         return result.error || "Agent verdict: fail";
@@ -36,13 +49,9 @@ function determineShouldFail(
       if (failOn === "warning" && verdict === "warning") {
         return "Agent verdict: warning";
       }
-      return null;
     }
   }
 
-  if (result.status === "failed") {
-    return result.error || "Agent run failed";
-  }
   return null;
 }
 
@@ -91,5 +100,38 @@ describe("determineShouldFail", () => {
   it("returns null on success without verdict path", () => {
     const run: RunResult = { status: "success", result: { data: "ok" }, error: null };
     expect(determineShouldFail(run, "fail")).toBeNull();
+  });
+
+  it("fails when verdict path is set but result is null", () => {
+    const run: RunResult = { status: "success", result: null, error: null };
+    expect(determineShouldFail(run, "fail", "output.verdict")).toContain("produced no result");
+  });
+
+  it("fails when verdict path is set but field is missing from result", () => {
+    const run: RunResult = { status: "success", result: { output: { summary: "ok" } }, error: null };
+    expect(determineShouldFail(run, "fail", "output.verdict")).toContain("missing verdict field");
+  });
+
+  it("fails when verdict path is set but field is null", () => {
+    const run: RunResult = { status: "success", result: { output: { verdict: null } }, error: null };
+    expect(determineShouldFail(run, "fail", "output.verdict")).toContain("missing verdict field");
+  });
+
+  it("uses nested output.verdict path correctly", () => {
+    const run: RunResult = {
+      status: "success",
+      result: { output: { verdict: "fail", summary: "leak found" } },
+      error: null,
+    };
+    expect(determineShouldFail(run, "fail", "output.verdict")).toContain("verdict: fail");
+  });
+
+  it("passes with nested output.verdict path when verdict is pass", () => {
+    const run: RunResult = {
+      status: "success",
+      result: { output: { verdict: "pass" } },
+      error: null,
+    };
+    expect(determineShouldFail(run, "fail", "output.verdict")).toBeNull();
   });
 });
