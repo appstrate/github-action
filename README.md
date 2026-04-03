@@ -67,31 +67,20 @@ On `pull_request` events, the action automatically builds and sends this input t
 
 ```json
 {
-  "pullRequest": {
-    "number": 42,
-    "title": "Add authentication",
-    "body": "PR description...",
-    "author": "username",
-    "base": "main",
-    "head": "feature/auth",
-    "headSha": "abc123",
-    "url": "https://github.com/owner/repo/pull/42",
-    "draft": false
-  },
-  "files": [
-    {
-      "path": "src/auth.ts",
-      "status": "modified",
-      "additions": 10,
-      "deletions": 2
-    }
-  ],
-  "repo": {
-    "owner": "owner",
-    "name": "repo",
-    "fullName": "owner/repo",
-    "defaultBranch": "main"
-  }
+  "repoOwner": "owner",
+  "repoName": "repo",
+  "repoFullName": "owner/repo",
+  "repoDefaultBranch": "main",
+  "prNumber": 42,
+  "prTitle": "Add authentication",
+  "prBody": "PR description...",
+  "prAuthor": "username",
+  "prBase": "main",
+  "prHead": "feature/auth",
+  "prHeadSha": "abc123",
+  "prUrl": "https://github.com/owner/repo/pull/42",
+  "prDraft": false,
+  "changedFiles": "src/auth.ts\nsrc/middleware.ts"
 }
 ```
 

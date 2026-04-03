@@ -8,14 +8,15 @@ Analyze the pull request described in your input for secrets, credentials, or se
 
 Your input contains PR metadata and a list of changed files, but NOT the diff content. You must fetch it yourself using the GitHub provider.
 
-Fetch the pull request diff:
+Fetch the pull request diff using the GitHub provider. The target URL is:
 
 ```
-GET /repos/{owner}/{repo}/pulls/{number}
-Accept: application/vnd.github.diff
+https://api.github.com/repos/{repoOwner}/{repoName}/pulls/{prNumber}
 ```
 
-Use `repo.owner`, `repo.name`, and `pullRequest.number` from your input.
+You MUST include the `Accept: application/vnd.github.diff` header in your request to get the raw diff (not JSON). This header is forwarded as-is through the sidecar proxy.
+
+Use `repoOwner`, `repoName`, and `prNumber` from your input.
 
 ## Step 2: Analyze the diff
 
@@ -40,13 +41,13 @@ Scan every added line (lines starting with `+` in the diff) for:
 
 ## Additional context
 
-If you need more context around a suspicious line (e.g., to determine if a value is a real secret or a test fixture), fetch the full file contents:
+If you need more context around a suspicious line (e.g., to determine if a value is a real secret or a test fixture), fetch the full file contents via the GitHub provider:
 
 ```
-GET /repos/{owner}/{repo}/contents/{path}?ref={headSha}
+https://api.github.com/repos/{repoOwner}/{repoName}/contents/{path}?ref={prHeadSha}
 ```
 
-Use `pullRequest.headSha` from your input.
+Use `prHeadSha` from your input. The response contains base64-encoded file content.
 
 ## Output format
 

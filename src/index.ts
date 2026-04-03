@@ -25,10 +25,28 @@ async function run(): Promise<void> {
   }
   core.endGroup();
 
-  // Build agent input: PR context as base, user input merged on top
+  // Build agent input: flatten PR context to scalar values so the prompt builder
+  // renders them correctly (nested objects would show as [object Object]).
   let agentInput: Record<string, unknown> | undefined;
   if (prContext) {
-    agentInput = { ...prContext, ...inputs.input };
+    const { pullRequest: pr, repo, files } = prContext;
+    agentInput = {
+      repoOwner: repo.owner,
+      repoName: repo.name,
+      repoFullName: repo.fullName,
+      repoDefaultBranch: repo.defaultBranch,
+      prNumber: pr.number,
+      prTitle: pr.title,
+      prBody: pr.body,
+      prAuthor: pr.author,
+      prBase: pr.base,
+      prHead: pr.head,
+      prHeadSha: pr.headSha,
+      prUrl: pr.url,
+      prDraft: pr.draft,
+      changedFiles: files.map((f) => f.path).join("\n"),
+      ...inputs.input,
+    };
   } else {
     agentInput = inputs.input;
   }

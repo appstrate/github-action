@@ -5,7 +5,7 @@
   "schemaVersion": "1.0",
   "displayName": "Anti-Leak Code Review",
   "description": "Detects secrets, credentials, and sensitive data leaks in pull request diffs",
-  "timeout": 120,
+  "timeout": 300,
   "dependencies": {
     "providers": {
       "@appstrate/github": "^1.0.0"
@@ -20,23 +20,64 @@
     "schema": {
       "type": "object",
       "properties": {
-        "pullRequest": {
-          "type": "object",
-          "description": "Pull request metadata (number, title, body, author, base, head, headSha, url, draft)"
+        "repoOwner": {
+          "type": "string",
+          "description": "Repository owner (e.g. tractr)"
         },
-        "files": {
-          "type": "array",
-          "description": "List of changed files (path, status, additions, deletions)",
-          "items": {
-            "type": "object"
-          }
+        "repoName": {
+          "type": "string",
+          "description": "Repository name (e.g. blues-web)"
         },
-        "repo": {
-          "type": "object",
-          "description": "Repository metadata (owner, name, fullName, defaultBranch)"
+        "repoFullName": {
+          "type": "string",
+          "description": "Full repository name (e.g. tractr/blues-web)"
+        },
+        "repoDefaultBranch": {
+          "type": "string",
+          "description": "Default branch name (e.g. main)"
+        },
+        "prNumber": {
+          "type": "integer",
+          "description": "Pull request number"
+        },
+        "prTitle": {
+          "type": "string",
+          "description": "Pull request title"
+        },
+        "prBody": {
+          "type": "string",
+          "description": "Pull request description"
+        },
+        "prAuthor": {
+          "type": "string",
+          "description": "Pull request author username"
+        },
+        "prBase": {
+          "type": "string",
+          "description": "Base branch name"
+        },
+        "prHead": {
+          "type": "string",
+          "description": "Head branch name"
+        },
+        "prHeadSha": {
+          "type": "string",
+          "description": "Head commit SHA"
+        },
+        "prUrl": {
+          "type": "string",
+          "description": "Pull request URL"
+        },
+        "prDraft": {
+          "type": "boolean",
+          "description": "Whether the PR is a draft"
+        },
+        "changedFiles": {
+          "type": "string",
+          "description": "Newline-separated list of changed file paths"
         }
       },
-      "required": ["pullRequest", "files", "repo"]
+      "required": ["repoOwner", "repoName", "prNumber"]
     }
   },
   "output": {
