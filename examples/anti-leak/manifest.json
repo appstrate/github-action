@@ -22,25 +22,21 @@
       "properties": {
         "pullRequest": {
           "type": "object",
-          "description": "Pull request metadata"
-        },
-        "diff": {
-          "type": "string",
-          "description": "Unified diff of all changed files"
+          "description": "Pull request metadata (number, title, body, author, base, head, headSha, url, draft)"
         },
         "files": {
           "type": "array",
-          "description": "List of changed files with patches",
+          "description": "List of changed files (path, status, additions, deletions)",
           "items": {
             "type": "object"
           }
         },
         "repo": {
           "type": "object",
-          "description": "Repository metadata"
+          "description": "Repository metadata (owner, name, fullName, defaultBranch)"
         }
       },
-      "required": ["diff", "files"]
+      "required": ["pullRequest", "files", "repo"]
     }
   },
   "output": {

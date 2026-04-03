@@ -15,7 +15,7 @@ Run [Appstrate](https://appstrate.dev) AI agents in your GitHub Actions workflow
     agent: "@myorg/my-agent"
 ```
 
-On `pull_request` events, the action automatically collects the PR diff, changed files, and metadata, then passes them as input to the agent.
+On `pull_request` events, the action automatically collects PR metadata and the list of changed files, then passes them as input to the agent. The agent fetches the actual diff via its GitHub provider — no size limits.
 
 ## Inputs
 
@@ -33,7 +33,6 @@ On `pull_request` events, the action automatically collects the PR diff, changed
 | `verdict-path` | No | — | Dot-path to verdict in agent output |
 | `summary-path` | No | — | Dot-path to summary in agent output |
 | `annotations-path` | No | — | Dot-path to annotations array in agent output |
-| `max-diff-size` | No | `200000` | Max diff size in characters before truncation |
 | `github-token` | No | `github.token` | GitHub token for reporting |
 
 ## Outputs
@@ -57,8 +56,8 @@ On `pull_request` events, the action automatically collects the PR diff, changed
 
 ## How It Works
 
-1. **Collect** — On PR events, fetches the diff, changed files, and PR metadata via the GitHub API
-2. **Run** — Sends everything as input to the specified Appstrate agent
+1. **Collect** — On PR events, fetches PR metadata and changed file list via the GitHub API
+2. **Run** — Sends the context as input to the specified Appstrate agent (the agent fetches the diff itself via its GitHub provider)
 3. **Stream** — Connects via SSE for live agent logs (falls back to polling)
 4. **Report** — Maps the agent's output to GitHub check runs, annotations, and comments
 
@@ -79,12 +78,10 @@ On `pull_request` events, the action automatically builds and sends this input t
     "url": "https://github.com/owner/repo/pull/42",
     "draft": false
   },
-  "diff": "--- a/file.ts\n+++ b/file.ts\n@@ ...",
   "files": [
     {
       "path": "src/auth.ts",
       "status": "modified",
-      "patch": "@@ -1,3 +1,5 @@...",
       "additions": 10,
       "deletions": 2
     }
@@ -236,7 +233,7 @@ The action needs these GitHub token permissions for full reporting:
 permissions:
   checks: write          # Create check runs with annotations
   pull-requests: write   # Post PR comments
-  contents: read         # Read PR diff and file contents
+  contents: read         # Read PR metadata and file list
 ```
 
 ## License
