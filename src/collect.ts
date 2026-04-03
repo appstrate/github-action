@@ -17,7 +17,6 @@ export interface PullRequestContext {
     url: string;
     draft: boolean;
   };
-  diff: string;
   files: FileChange[];
   repo: {
     owner: string;
@@ -27,24 +26,22 @@ export interface PullRequestContext {
   };
 }
 
-/** A single changed file in the pull request. */
+/** A single changed file in the pull request (metadata only, no patch content). */
 export interface FileChange {
   path: string;
   status: string;
-  patch: string;
   additions: number;
   deletions: number;
   previousPath?: string;
 }
 
-// Default 200KB — keeps agent context reasonable
-const DEFAULT_MAX_DIFF_CHARS = 200_000;
-
-/** Collect PR metadata, diff, and changed files via the GitHub API. Returns null if not in a PR context. */
-export async function collectPRContext(
-  token: string,
-  maxDiffChars: number = DEFAULT_MAX_DIFF_CHARS
-): Promise<PullRequestContext | null> {
+/**
+ * Collect PR metadata and changed file list via the GitHub API.
+ * Does NOT fetch patches/diffs — the agent should fetch those itself
+ * via the GitHub provider to avoid env var size limits.
+ * Returns null if not in a PR context.
+ */
+export async function collectPRContext(token: string): Promise<PullRequestContext | null> {
   const { context } = github;
 
   if (context.eventName !== "pull_request" && context.eventName !== "pull_request_target") {
@@ -62,34 +59,9 @@ export async function collectPRContext(
   const owner = context.repo.owner;
   const repo = context.repo.repo;
 
-  // Fetch changed files with patches
+  // Fetch changed files (metadata only, no patches)
   core.info(`Fetching changed files for PR #${pr.number}...`);
   const files = await fetchAllFiles(octokit, owner, repo, pr.number);
-
-  // Build unified diff from patches, truncating if too large
-  let totalChars = 0;
-  let truncatedCount = 0;
-  const diffParts: string[] = [];
-
-  for (const f of files) {
-    if (!f.patch) continue;
-    const part = `--- a/${f.previousPath || f.path}\n+++ b/${f.path}\n${f.patch}`;
-    if (totalChars + part.length > maxDiffChars) {
-      truncatedCount++;
-      continue;
-    }
-    diffParts.push(part);
-    totalChars += part.length;
-  }
-
-  if (truncatedCount > 0) {
-    core.warning(
-      `Diff truncated: ${truncatedCount} file(s) omitted (exceeded ${maxDiffChars} char limit). ` +
-        `Increase max-diff-size or let the agent fetch files via the GitHub provider.`
-    );
-  }
-
-  const diff = diffParts.join("\n\n");
 
   // Get repo info
   const { data: repoData } = await octokit.rest.repos.get({ owner, repo });
@@ -106,11 +78,9 @@ export async function collectPRContext(
       url: pr.html_url ?? "",
       draft: pr.draft ?? false,
     },
-    diff,
     files: files.map((f) => ({
       path: f.path,
       status: f.status,
-      patch: f.patch,
       additions: f.additions,
       deletions: f.deletions,
       previousPath: f.previousPath,
@@ -127,7 +97,6 @@ export async function collectPRContext(
 interface RawFile {
   path: string;
   status: string;
-  patch: string;
   additions: number;
   deletions: number;
   previousPath?: string;
@@ -155,7 +124,6 @@ async function fetchAllFiles(
       files.push({
         path: f.filename,
         status: f.status,
-        patch: f.patch ?? "",
         additions: f.additions,
         deletions: f.deletions,
         previousPath: f.status === "renamed" ? f.previous_filename : undefined,

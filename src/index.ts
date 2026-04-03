@@ -16,11 +16,11 @@ async function run(): Promise<void> {
 
   // Collect PR context
   core.startGroup("Collecting PR context");
-  const prContext = await collectPRContext(inputs.githubToken, inputs.maxDiffSize);
+  const prContext = await collectPRContext(inputs.githubToken);
   if (prContext) {
     core.info(
       `PR #${prContext.pullRequest.number}: ${prContext.pullRequest.title} ` +
-        `(${prContext.files.length} files, ${prContext.diff.length} chars diff)`
+        `(${prContext.files.length} files)`
     );
   }
   core.endGroup();

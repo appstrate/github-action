@@ -44,10 +44,6 @@ inputs:
   annotations-path:
     description: "Dot-path to annotations array in agent output (e.g. findings)"
     required: false
-  max-diff-size:
-    description: "Max diff size in characters before truncation (default: 200000)"
-    required: false
-    default: "200000"
   github-token:
     description: "GitHub token for PR comments and check runs (default: github.token)"
     required: false

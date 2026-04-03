@@ -31738,7 +31738,6 @@ function getInputs() {
         summaryPath: core.getInput("summary-path") || undefined,
         annotationsPath: core.getInput("annotations-path") || undefined,
     };
-    const maxDiffSize = parseInt(core.getInput("max-diff-size") || "200000", 10);
     const githubToken = core.getInput("github-token", { required: true });
     return {
         appstrateUrl,
@@ -31751,7 +31750,6 @@ function getInputs() {
         outputMode,
         failOn,
         mapping,
-        maxDiffSize,
         githubToken,
     };
 }
@@ -31852,10 +31850,13 @@ var github = __nccwpck_require__(3228);
 // Copyright 2025 Appstrate
 
 
-// Default 200KB — keeps agent context reasonable
-const DEFAULT_MAX_DIFF_CHARS = 200_000;
-/** Collect PR metadata, diff, and changed files via the GitHub API. Returns null if not in a PR context. */
-async function collectPRContext(token, maxDiffChars = DEFAULT_MAX_DIFF_CHARS) {
+/**
+ * Collect PR metadata and changed file list via the GitHub API.
+ * Does NOT fetch patches/diffs — the agent should fetch those itself
+ * via the GitHub provider to avoid env var size limits.
+ * Returns null if not in a PR context.
+ */
+async function collectPRContext(token) {
     const { context } = github;
     if (context.eventName !== "pull_request" && context.eventName !== "pull_request_target") {
         core.info("Not a pull_request event, skipping PR context collection");
@@ -31869,29 +31870,9 @@ async function collectPRContext(token, maxDiffChars = DEFAULT_MAX_DIFF_CHARS) {
     const octokit = github.getOctokit(token);
     const owner = context.repo.owner;
     const repo = context.repo.repo;
-    // Fetch changed files with patches
+    // Fetch changed files (metadata only, no patches)
     core.info(`Fetching changed files for PR #${pr.number}...`);
     const files = await fetchAllFiles(octokit, owner, repo, pr.number);
-    // Build unified diff from patches, truncating if too large
-    let totalChars = 0;
-    let truncatedCount = 0;
-    const diffParts = [];
-    for (const f of files) {
-        if (!f.patch)
-            continue;
-        const part = `--- a/${f.previousPath || f.path}\n+++ b/${f.path}\n${f.patch}`;
-        if (totalChars + part.length > maxDiffChars) {
-            truncatedCount++;
-            continue;
-        }
-        diffParts.push(part);
-        totalChars += part.length;
-    }
-    if (truncatedCount > 0) {
-        core.warning(`Diff truncated: ${truncatedCount} file(s) omitted (exceeded ${maxDiffChars} char limit). ` +
-            `Increase max-diff-size or let the agent fetch files via the GitHub provider.`);
-    }
-    const diff = diffParts.join("\n\n");
     // Get repo info
     const { data: repoData } = await octokit.rest.repos.get({ owner, repo });
     return {
@@ -31906,11 +31887,9 @@ async function collectPRContext(token, maxDiffChars = DEFAULT_MAX_DIFF_CHARS) {
             url: pr.html_url ?? "",
             draft: pr.draft ?? false,
         },
-        diff,
         files: files.map((f) => ({
             path: f.path,
             status: f.status,
-            patch: f.patch,
             additions: f.additions,
             deletions: f.deletions,
             previousPath: f.previousPath,
@@ -31938,7 +31917,6 @@ async function fetchAllFiles(octokit, owner, repo, prNumber) {
             files.push({
                 path: f.filename,
                 status: f.status,
-                patch: f.patch ?? "",
                 additions: f.additions,
                 deletions: f.deletions,
                 previousPath: f.status === "renamed" ? f.previous_filename : undefined,
@@ -32281,10 +32259,10 @@ async function run() {
     const { scope, name } = parseAgent(inputs.agent);
     // Collect PR context
     core.startGroup("Collecting PR context");
-    const prContext = await collectPRContext(inputs.githubToken, inputs.maxDiffSize);
+    const prContext = await collectPRContext(inputs.githubToken);
     if (prContext) {
         core.info(`PR #${prContext.pullRequest.number}: ${prContext.pullRequest.title} ` +
-            `(${prContext.files.length} files, ${prContext.diff.length} chars diff)`);
+            `(${prContext.files.length} files)`);
     }
     core.endGroup();
     // Build agent input: PR context as base, user input merged on top

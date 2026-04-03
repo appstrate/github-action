@@ -16,7 +16,6 @@ export interface ActionInputs {
   outputMode: OutputMode;
   failOn: "fail" | "warning" | "never";
   mapping: MappingConfig;
-  maxDiffSize: number;
   githubToken: string;
 }
 
@@ -78,8 +77,6 @@ export function getInputs(): ActionInputs {
     annotationsPath: core.getInput("annotations-path") || undefined,
   };
 
-  const maxDiffSize = parseInt(core.getInput("max-diff-size") || "200000", 10);
-
   const githubToken = core.getInput("github-token", { required: true });
 
   return {
@@ -93,7 +90,6 @@ export function getInputs(): ActionInputs {
     outputMode,
     failOn,
     mapping,
-    maxDiffSize,
     githubToken,
   };
 }
