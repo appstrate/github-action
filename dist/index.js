@@ -32349,9 +32349,19 @@ function determineShouldFail(result, failOn, verdictPath) {
         return "Agent run timed out";
     if (result.status === "cancelled")
         return "Agent run was cancelled";
-    // If agent has a verdict field, use it
-    if (verdictPath && result.result) {
+    // Fallback: use run status for adapter-level failures
+    if (result.status === "failed") {
+        return result.error || "Agent run failed";
+    }
+    // If verdict-path is configured, the agent MUST produce a verdict
+    if (verdictPath) {
+        if (!result.result) {
+            return "Agent produced no result (expected verdict at: " + verdictPath + ")";
+        }
         const verdict = src_getNestedValue(result.result, verdictPath);
+        if (verdict === undefined || verdict === null) {
+            return "Agent result missing verdict field (expected at: " + verdictPath + ")";
+        }
         if (typeof verdict === "string") {
             if (verdict === "fail" || verdict === "failed" || verdict === "failure") {
                 return result.error || "Agent verdict: fail";
@@ -32359,12 +32369,7 @@ function determineShouldFail(result, failOn, verdictPath) {
             if (failOn === "warning" && verdict === "warning") {
                 return "Agent verdict: warning";
             }
-            return null;
         }
-    }
-    // Fallback: use run status
-    if (result.status === "failed") {
-        return result.error || "Agent run failed";
     }
     return null;
 }
