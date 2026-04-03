@@ -40,11 +40,13 @@ inputs:
     required: false
     default: "output.verdict"
   summary-path:
-    description: "Dot-path to summary field in agent output (e.g. summary)"
+    description: "Dot-path to summary field in agent output (default: output.summary)"
     required: false
+    default: "output.summary"
   annotations-path:
-    description: "Dot-path to annotations array in agent output (e.g. findings)"
+    description: "Dot-path to annotations array in agent output (default: output.findings)"
     required: false
+    default: "output.findings"
   github-token:
     description: "GitHub token for PR comments and check runs (default: github.token)"
     required: false
