@@ -21,6 +21,5 @@ jobs:
           agent: "@appstrate/anti-leak"
           output-mode: "full"
           fail-on: "fail"
-          verdict-path: "verdict"
-          summary-path: "summary"
-          annotations-path: "findings"
+          summary-path: "output.summary"
+          annotations-path: "output.findings"

@@ -1,0 +1,29 @@
+# Example GitHub Actions workflow using the code review agent
+# Copy this to .github/workflows/code-review.yml in your repository
+
+name: Code Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    # Only run on PR comments (skip issue comments)
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: appstrate/github-action@v1
+        with:
+          appstrate-url: ${{ secrets.APPSTRATE_URL }}
+          appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
+          agent: "@appstrate/code-review"
+          output-mode: "full"
+          fail-on: "fail"

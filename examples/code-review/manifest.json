@@ -1,17 +1,18 @@
 {
-  "name": "@appstrate/anti-leak",
+  "name": "@appstrate/code-review",
   "version": "1.0.0",
   "type": "agent",
   "schemaVersion": "1.0",
-  "displayName": "Anti-Leak Code Review",
-  "description": "Detects secrets, credentials, and sensitive data leaks in pull request diffs",
+  "displayName": "Code Review",
+  "description": "Reviews pull requests, challenges developers with questions, and unblocks when answered",
   "timeout": 300,
   "dependencies": {
     "providers": {
       "@appstrate/github": "^1.0.0"
     },
     "tools": {
-      "@appstrate/output": "^1.0.0"
+      "@appstrate/output": "^1.0.0",
+      "@appstrate/set-state": "^1.0.0"
     }
   },
   "providersConfiguration": {
@@ -25,19 +26,19 @@
       "properties": {
         "repoOwner": {
           "type": "string",
-          "description": "Repository owner (e.g. tractr)"
+          "description": "Repository owner"
         },
         "repoName": {
           "type": "string",
-          "description": "Repository name (e.g. blues-web)"
+          "description": "Repository name"
         },
         "repoFullName": {
           "type": "string",
-          "description": "Full repository name (e.g. tractr/blues-web)"
+          "description": "Full repository name (owner/name)"
         },
         "repoDefaultBranch": {
           "type": "string",
-          "description": "Default branch name (e.g. main)"
+          "description": "Default branch name"
         },
         "prNumber": {
           "type": "number",
@@ -78,6 +79,22 @@
         "changedFiles": {
           "type": "string",
           "description": "Newline-separated list of changed file paths"
+        },
+        "triggerEvent": {
+          "type": "string",
+          "description": "GitHub event that triggered this run (pull_request or issue_comment)"
+        },
+        "comments": {
+          "type": "string",
+          "description": "PR comments formatted as [author @ date]\\nbody, separated by ---"
+        },
+        "triggerCommentAuthor": {
+          "type": "string",
+          "description": "Author of the comment that triggered this run (issue_comment only)"
+        },
+        "triggerCommentBody": {
+          "type": "string",
+          "description": "Body of the comment that triggered this run (issue_comment only)"
         }
       },
       "required": ["repoOwner", "repoName", "prNumber"]
@@ -93,7 +110,7 @@
         },
         "summary": {
           "type": "string",
-          "description": "Markdown summary of findings"
+          "description": "Markdown summary of the review status"
         },
         "findings": {
           "type": "array",
