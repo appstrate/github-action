@@ -12,8 +12,13 @@ export interface RunResult {
   cost: number | null;
 }
 
+/**
+ * `POST /agents/{scope}/{name}/run` returns `201` + the bare created run
+ * resource (same shape as `GET /runs/{id}`). We only read its `id` — the
+ * legacy `runId` alias was removed (appstrate/appstrate#657).
+ */
 interface TriggerResponse {
-  runId: string;
+  id: string;
 }
 
 /** HTTP client for the Appstrate API. Handles run triggering and polling. */
@@ -60,7 +65,7 @@ export class AppstrateClient {
     }
 
     const data = (await res.json()) as TriggerResponse;
-    return data.runId;
+    return data.id;
   }
 
   /** Fetch a run by ID. */

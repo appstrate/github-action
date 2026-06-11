@@ -31805,7 +31805,7 @@ class AppstrateClient {
             throw new Error(`Failed to trigger run (${res.status}): ${text}`);
         }
         const data = (await res.json());
-        return data.runId;
+        return data.id;
     }
     /** Fetch a run by ID. */
     async getRun(runId) {
