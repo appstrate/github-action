@@ -1,15 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2025 Appstrate
 
-/** Result of a completed Appstrate agent run. */
+/**
+ * Token consumption reported for a run. Every member is optional: the platform
+ * stores the runner's payload verbatim in JSONB and declares none of the four
+ * buckets required, so a runner may report a subset (and provider-specific
+ * extras beyond them).
+ */
+export interface TokenUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}
+
+/**
+ * The subset of the run wire resource this action reads. Field names and
+ * nullability follow the platform's OpenAPI `Run` schema — `duration` is
+ * `integer | null` (null until the run reaches a terminal state), and token
+ * counts arrive as the `token_usage` OBJECT, never as a scalar.
+ */
 export interface RunResult {
   id: string;
   status: "pending" | "running" | "success" | "failed" | "timeout" | "cancelled";
+  /** `{ output: … }` — the agent's structured output is nested under `output`. */
   result: Record<string, unknown> | null;
   error: string | null;
-  duration: number;
-  tokensUsed: number | null;
+  duration: number | null;
+  token_usage: TokenUsage | null;
   cost: number | null;
+}
+
+/**
+ * Render token usage as a one-line breakdown, or null when the platform
+ * reported none. Deliberately NOT a single total: `cache_read_input_tokens`
+ * and `input_tokens` are billed at different rates, so adding them would be a
+ * pricing judgement this action has no basis to make.
+ */
+export function formatTokenUsage(usage: TokenUsage | null | undefined): string | null {
+  if (!usage) return null;
+  const parts: string[] = [];
+  if (usage.input_tokens !== undefined) parts.push(`${usage.input_tokens} in`);
+  if (usage.output_tokens !== undefined) parts.push(`${usage.output_tokens} out`);
+  if (usage.cache_read_input_tokens !== undefined) {
+    parts.push(`${usage.cache_read_input_tokens} cache read`);
+  }
+  if (usage.cache_creation_input_tokens !== undefined) {
+    parts.push(`${usage.cache_creation_input_tokens} cache write`);
+  }
+  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 /**
@@ -38,7 +77,6 @@ export class AppstrateClient {
     options?: {
       version?: string;
       input?: Record<string, unknown>;
-      config?: Record<string, unknown>;
     }
   ): Promise<string> {
     const url = new URL(`/api/agents/${scope}/${encodeURIComponent(name)}/run`, this.baseUrl);
@@ -48,7 +86,6 @@ export class AppstrateClient {
 
     const body: Record<string, unknown> = {};
     if (options?.input) body.input = options.input;
-    if (options?.config) body.config = options.config;
 
     const res = await fetch(url.toString(), {
       method: "POST",

@@ -11,7 +11,6 @@ export interface ActionInputs {
   agent: string;
   agentVersion?: string;
   input?: Record<string, unknown>;
-  config?: Record<string, unknown>;
   timeout: number;
   outputMode: OutputMode;
   failOn: "fail" | "warning" | "never";
@@ -39,11 +38,10 @@ export function getInputs(): ActionInputs {
 
   const agentVersion = core.getInput("agent-version") || undefined;
 
+  assertConfigRetired();
+
   const inputRaw = core.getInput("input");
   const input = inputRaw ? parseJson<Record<string, unknown>>(inputRaw, "input") : undefined;
-
-  const configRaw = core.getInput("config");
-  const config = configRaw ? parseJson<Record<string, unknown>>(configRaw, "config") : undefined;
 
   const timeout = parseInt(core.getInput("timeout") || "300", 10);
   if (isNaN(timeout) || timeout < 1) {
@@ -85,13 +83,36 @@ export function getInputs(): ActionInputs {
     agent,
     agentVersion,
     input,
-    config,
     timeout,
     outputMode,
     failOn,
     mapping,
     githubToken,
   };
+}
+
+/**
+ * Fail loudly on the retired `config` input.
+ *
+ * `config` is gone from `action.yml`, but removing the declaration does NOT
+ * stop the value arriving: the runner treats an undeclared `with:` key as a
+ * WARNING, and still exports it as `INPUT_CONFIG`, so `getInput("config")`
+ * keeps returning it. A workflow that still passes `config:` would therefore
+ * have its agent parameters dropped without a trace, which is exactly the
+ * silent fallback a retirement is supposed to prevent.
+ *
+ * The platform retired the concept in appstrate/appstrate#1179, which collapsed
+ * manifest `config` into `input` (stored values now live per space behind
+ * `PUT /api/agents/{scope}/{name}/input-settings`). #1189 then made the launch
+ * body `.strict()`, so the field is a 400 on the wire as well.
+ */
+function assertConfigRetired(): void {
+  if (!core.getInput("config")) return;
+  throw new Error(
+    "The `config` input was removed — agent parameters are now `input`. " +
+      "Move the JSON from `config:` to `input:`. Values fixed once per space are set " +
+      "on the platform (PUT /api/agents/{scope}/{name}/input-settings), not per run."
+  );
 }
 
 /** Parse an agent string like "@scope/name" into its components. */

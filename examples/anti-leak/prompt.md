@@ -6,9 +6,9 @@ Analyze the pull request described in your input for secrets, credentials, or se
 
 ## Step 1: Fetch the diff
 
-Your input contains PR metadata and a list of changed files, but NOT the diff content. You must fetch it yourself using the GitHub provider.
+Your input contains PR metadata and a list of changed files, but NOT the diff content. You must fetch it yourself using the GitHub integration.
 
-Fetch the pull request diff using the GitHub provider. The target URL is:
+Fetch the pull request diff using the GitHub integration. The target URL is:
 
 ```
 https://api.github.com/repos/{repoOwner}/{repoName}/pulls/{prNumber}
@@ -41,7 +41,7 @@ Scan every added line (lines starting with `+` in the diff) for:
 
 ## Additional context
 
-If you need more context around a suspicious line (e.g., to determine if a value is a real secret or a test fixture), fetch the full file contents via the GitHub provider:
+If you need more context around a suspicious line (e.g., to determine if a value is a real secret or a test fixture), fetch the full file contents via the GitHub integration:
 
 ```
 https://api.github.com/repos/{repoOwner}/{repoName}/contents/{path}?ref={prHeadSha}

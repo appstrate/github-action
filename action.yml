@@ -20,9 +20,6 @@ inputs:
   input:
     description: "Agent input as JSON string"
     required: false
-  config:
-    description: "Agent config as JSON string"
-    required: false
   timeout:
     description: "Max wait time in seconds (default: 300)"
     required: false

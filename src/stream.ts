@@ -2,29 +2,39 @@
 // Copyright 2025 Appstrate
 
 import * as core from "@actions/core";
-import type { RunResult } from "./client.js";
 
 interface SSEEvent {
   event: string;
   data: string;
 }
 
+/**
+ * `run_update` frame. The full frame also carries `operation`, `id`,
+ * `packageId`, `userId`, `endUserId`, `orgId`, `spaceId`, `scheduleId`,
+ * `error`, `startedAt`, `completedAt` and `duration` — none of which this
+ * action reads. Notably it never carries `result`: the structured output is
+ * only available from `GET /runs/{id}`, which is why this stream is a progress
+ * feed and not a source of the run's outcome.
+ */
 interface RunUpdatePayload {
-  id: string;
   status: string;
-  error?: string;
 }
 
+/** `run_log` frame — the members this action renders into the CI log. */
 interface RunLogPayload {
-  type: string;
-  event: string;
   message?: string;
   level?: string;
 }
 
 /**
- * Stream run progress via SSE, resolving when the run reaches a terminal state.
- * Returns null if SSE connection fails (caller should fallback to polling).
+ * Stream run progress via SSE, returning once the run reports a terminal
+ * status or the stream gives up (connection refused, timeout, parse failure).
+ *
+ * It reports no outcome on purpose: `run_update` frames carry a status and
+ * nothing else, and the stream has no replay — a backed-up subscriber is
+ * dropped and loses frames silently. The caller must therefore confirm the
+ * terminal state with `GET /runs/{id}` either way, which it does
+ * unconditionally.
  */
 export async function streamUntilDone(
   baseUrl: string,
@@ -33,7 +43,7 @@ export async function streamUntilDone(
   timeoutMs: number,
   onLog?: (message: string) => void,
   onStatusChange?: (status: string) => void
-): Promise<RunResult | null> {
+): Promise<void> {
   const url = new URL(`/api/realtime/runs/${encodeURIComponent(runId)}`, baseUrl);
   // Token in query param: required by the Appstrate SSE API (EventSource cannot send headers).
   // The API key is masked via core.setSecret() so it won't appear in CI logs.
@@ -51,12 +61,10 @@ export async function streamUntilDone(
 
     if (!res.ok || !res.body) {
       core.info(`SSE connection failed (${res.status}), falling back to polling`);
-      return null;
+      return;
     }
 
     core.info("Connected to live stream");
-
-    let finalRun: RunResult | null = null;
 
     for await (const event of parseSSE(res.body)) {
       if (event.event === "ping") continue;
@@ -68,11 +76,7 @@ export async function streamUntilDone(
         if (onStatusChange) onStatusChange(payload.status);
 
         const terminal = ["success", "failed", "timeout", "cancelled"];
-        if (terminal.includes(payload.status)) {
-          // SSE payload may be stripped — we need the full run for result
-          finalRun = { needsFetch: true } as unknown as RunResult;
-          break;
-        }
+        if (terminal.includes(payload.status)) break;
       }
 
       if (event.event === "run_log") {
@@ -85,22 +89,14 @@ export async function streamUntilDone(
         }
       }
     }
-
-    // Signal that we connected OK but need final fetch for full result
-    if (finalRun) {
-      return finalRun;
-    }
-
-    return null;
   } catch (err) {
     if (controller.signal.aborted) {
       core.info("SSE stream timed out");
-      return null;
+      return;
     }
     core.info(
       `SSE stream error: ${err instanceof Error ? err.message : err}, falling back to polling`
     );
-    return null;
   } finally {
     clearTimeout(timeout);
     controller.abort();
