@@ -1,20 +1,20 @@
 {
+  "$schema": "https://schemas.afps.dev/v0/agent.schema.json",
   "name": "@appstrate/anti-leak",
   "version": "1.0.0",
   "type": "agent",
-  "schemaVersion": "1.0",
-  "displayName": "Anti-Leak Code Review",
+  "schema_version": "0.3",
+  "display_name": "Anti-Leak Code Review",
+  "author": "Appstrate",
   "description": "Detects secrets, credentials, and sensitive data leaks in pull request diffs",
   "timeout": 300,
+  "runtime_tools": ["output"],
   "dependencies": {
-    "providers": {
+    "integrations": {
       "@appstrate/github": "^1.0.0"
-    },
-    "tools": {
-      "@appstrate/output": "^1.0.0"
     }
   },
-  "providersConfiguration": {
+  "integrations_configuration": {
     "@appstrate/github": {
       "scopes": ["repo"]
     }

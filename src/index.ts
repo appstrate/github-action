@@ -3,7 +3,7 @@
 
 import * as core from "@actions/core";
 import { getInputs, parseAgent } from "./inputs.js";
-import { AppstrateClient, type RunResult } from "./client.js";
+import { AppstrateClient, formatTokenUsage, type RunResult } from "./client.js";
 import { collectPRContext } from "./collect.js";
 import { report } from "./report.js";
 import { streamUntilDone } from "./stream.js";
@@ -69,7 +69,6 @@ async function run(): Promise<void> {
   const runId = await client.triggerRun(scope, name, {
     version: inputs.agentVersion,
     input: agentInput,
-    config: inputs.config,
   });
 
   core.info(`Run ID: ${runId}`);
@@ -79,7 +78,7 @@ async function run(): Promise<void> {
   // Wait for completion
   core.startGroup("Waiting for agent completion");
 
-  let result = await streamUntilDone(
+  await streamUntilDone(
     inputs.appstrateUrl,
     inputs.apiKey,
     runId,
@@ -88,8 +87,9 @@ async function run(): Promise<void> {
     (status) => core.info(`Status: ${status}`)
   );
 
-  // Always fetch final run for full result
-  result = await client.getRun(runId);
+  // The stream is a progress feed only — `run_update` never carries the run's
+  // result. Always fetch the run for the outcome.
+  let result = await client.getRun(runId);
 
   // If still in progress (SSE failed early), fallback to polling
   if (result.status === "pending" || result.status === "running") {
@@ -99,14 +99,18 @@ async function run(): Promise<void> {
     });
   }
 
-  core.info(`Completed: ${result.status} (${result.duration}ms)`);
-  if (result.tokensUsed) core.info(`Tokens: ${result.tokensUsed}`);
+  const duration = result.duration === null ? "" : `${result.duration}ms`;
+  core.info(`Completed: ${result.status}${duration ? ` (${duration})` : ""}`);
+  const tokens = formatTokenUsage(result.token_usage);
+  if (tokens) core.info(`Tokens: ${tokens}`);
   if (result.cost) core.info(`Cost: $${result.cost.toFixed(4)}`);
   core.endGroup();
 
-  // Set outputs
+  // Set outputs. `duration` is null until the platform finalises the run, and
+  // an empty string is the honest rendering of "not reported" — "null" would
+  // read as a number to a workflow doing arithmetic on it.
   core.setOutput("status", result.status);
-  core.setOutput("duration", result.duration.toString());
+  core.setOutput("duration", result.duration === null ? "" : result.duration.toString());
   if (result.result) {
     core.setOutput("result", JSON.stringify(result.result));
   }

@@ -26,7 +26,7 @@ You operate in two modes depending on `triggerEvent`:
 
 ### Mode 1: Initial review (`triggerEvent` = `pull_request`)
 
-1. **Fetch the diff** using the GitHub provider:
+1. **Fetch the diff** using the GitHub integration:
    ```
    https://api.github.com/repos/{repoOwner}/{repoName}/pulls/{prNumber}
    ```
@@ -45,7 +45,7 @@ You operate in two modes depending on `triggerEvent`:
    - Ask the developer to explain how their code handles it
    - Be answerable only with a genuine explanation, not "I'll fix it"
 
-4. **Save your questions in state** using `set_state`:
+4. **Save your questions** using `pin`, in a slot keyed to this pull request — `key: "pr_{prNumber}"` (e.g. `pr_42`). Slot keys are scoped to `(agent, space, actor)` and nothing more, so a fixed key like `checkpoint` would be overwritten by every other PR reviewed under the same API key. Use `prNumber` from your input:
    ```json
    {
      "questions": [
@@ -60,7 +60,7 @@ You operate in two modes depending on `triggerEvent`:
 
 ### Mode 2: Follow-up review (`triggerEvent` = `issue_comment`)
 
-1. **Read your previous state** — it contains the questions you asked previously.
+1. **Read your pinned `pr_{prNumber}` slot** — every pinned slot is injected into your system prompt under `## Pinned Slots`. Read only the one for this PR's `prNumber`; ignore any other PR's slot. It contains the questions you asked previously.
 
 2. **Read the PR comments** from the `comments` input — these contain the developer's responses.
 
@@ -69,7 +69,7 @@ You operate in two modes depending on `triggerEvent`:
    - Is their justification reasonable, even if you would have done it differently?
    - Did they push a code change that addresses the concern?
 
-4. **Update your state**: mark resolved questions. Add new questions only if an answer reveals a deeper issue.
+4. **Update the `pr_{prNumber}` slot**: mark resolved questions. Add new questions only if an answer reveals a deeper issue.
 
 5. **If all questions are resolved**: output `verdict: "pass"`.
 

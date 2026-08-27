@@ -8,14 +8,16 @@ Run [Appstrate](https://appstrate.dev) AI agents in your GitHub Actions workflow
 ## Quick Start
 
 ```yaml
-- uses: appstrate/github-action@v1
+- uses: appstrate/github-action@main
   with:
     appstrate-url: ${{ secrets.APPSTRATE_URL }}
     appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
     agent: "@myorg/my-agent"
 ```
 
-On `pull_request` events, the action automatically collects PR metadata and the list of changed files, then passes them as input to the agent. The agent fetches the actual diff via its GitHub provider — no size limits.
+> **Which ref to use.** This action has not been released yet: there are no tags and no releases, so `@v1` (or any version tag) does not resolve. `@main` tracks the default branch. To pin, use a full commit SHA — `appstrate/github-action@<sha>` — which is what GitHub recommends for third-party actions and what the examples in `examples/` should be adapted to for production use.
+
+On `pull_request` events, the action automatically collects PR metadata and the list of changed files, then passes them as input to the agent. The agent fetches the actual diff via its GitHub integration — no size limits.
 
 ## Inputs
 
@@ -26,13 +28,12 @@ On `pull_request` events, the action automatically collects PR metadata and the 
 | `agent` | Yes | — | Agent to run (`@scope/name`) |
 | `agent-version` | No | latest | Version, dist-tag, or semver range |
 | `input` | No | — | Additional agent input (JSON string, merged with PR context) |
-| `config` | No | — | Agent config (JSON string) |
 | `timeout` | No | `300` | Max wait time in seconds |
 | `output-mode` | No | `full` | Reporting mode (see below) |
 | `fail-on` | No | `fail` | When to fail the step: `fail`, `warning`, `never` |
-| `verdict-path` | No | — | Dot-path to verdict in agent output |
-| `summary-path` | No | — | Dot-path to summary in agent output |
-| `annotations-path` | No | — | Dot-path to annotations array in agent output |
+| `verdict-path` | No | `output.verdict` | Dot-path to verdict in agent output. Non-empty makes a verdict **mandatory** — see below |
+| `summary-path` | No | `output.summary` | Dot-path to summary in agent output |
+| `annotations-path` | No | `output.findings` | Dot-path to annotations array in agent output |
 | `github-token` | No | `github.token` | GitHub token for reporting |
 
 ## Outputs
@@ -41,8 +42,8 @@ On `pull_request` events, the action automatically collects PR metadata and the 
 |--------|-------------|
 | `run-id` | Appstrate run ID |
 | `status` | Run status (`success`, `failed`, `timeout`, `cancelled`) |
-| `result` | Agent result as JSON string |
-| `duration` | Run duration in milliseconds |
+| `result` | Agent result as JSON string — the agent's structured output is nested under `output` |
+| `duration` | Run duration in milliseconds; empty when the platform reported none |
 
 ## Output Modes
 
@@ -57,7 +58,7 @@ On `pull_request` events, the action automatically collects PR metadata and the 
 ## How It Works
 
 1. **Collect** — On PR events, fetches PR metadata and changed file list via the GitHub API
-2. **Run** — Sends the context as input to the specified Appstrate agent (the agent fetches the diff itself via its GitHub provider)
+2. **Run** — Sends the context as input to the specified Appstrate agent (the agent fetches the diff itself via its GitHub integration)
 3. **Stream** — Connects via SSE for live agent logs (falls back to polling)
 4. **Report** — Maps the agent's output to GitHub check runs, annotations, and comments
 
@@ -90,22 +91,24 @@ Any `input` you provide is merged on top of this context.
 
 By default, the action posts the full agent result as a PR comment and creates a check run based on the run status.
 
-For structured reporting (verdict, annotations), configure mapping paths that point into the agent's JSON output:
+A run's persisted result wraps the agent's structured output under `output`, so a mapping path starts there. The three paths default to `output.verdict`, `output.summary` and `output.findings` — the shape both bundled examples declare — and only need setting when an agent names its fields differently:
 
 ```yaml
-verdict-path: "verdict"           # e.g. output.verdict = "pass" | "fail" | "warning"
-summary-path: "summary"           # e.g. output.summary = "No issues found"
-annotations-path: "findings"      # e.g. output.findings = [{ path, line, level, message }]
+verdict-path: "output.verdict"       # "pass" | "fail" | "warning"
+summary-path: "output.summary"       # "No issues found"
+annotations-path: "output.findings"  # [{ path, line, level, message }]
 ```
 
 Annotation objects should have: `path`, `line` (or `startLine`), `level` (`error`/`warning`/`notice`), `message`, and optionally `title`.
+
+Because `verdict-path` is non-empty by default, an agent that never emits a verdict at that path **fails the step** (unless `fail-on: "never"`). Set `verdict-path: ""` for an agent that reports through the run status alone.
 
 ## Examples
 
 ### Basic — any agent, just run it
 
 ```yaml
-- uses: appstrate/github-action@v1
+- uses: appstrate/github-action@main
   with:
     appstrate-url: ${{ secrets.APPSTRATE_URL }}
     appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
@@ -116,16 +119,16 @@ Annotation objects should have: `path`, `line` (or `startLine`), `level` (`error
 ### Structured — with annotations and verdict
 
 ```yaml
-- uses: appstrate/github-action@v1
+- uses: appstrate/github-action@main
   with:
     appstrate-url: ${{ secrets.APPSTRATE_URL }}
     appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
     agent: "@appstrate/anti-leak"
     output-mode: "full"
     fail-on: "fail"
-    verdict-path: "verdict"
-    summary-path: "summary"
-    annotations-path: "findings"
+    verdict-path: "output.verdict"
+    summary-path: "output.summary"
+    annotations-path: "output.findings"
 ```
 
 ### Multi-agent — parallel jobs
@@ -139,13 +142,13 @@ jobs:
       pull-requests: write
       contents: read
     steps:
-      - uses: appstrate/github-action@v1
+      - uses: appstrate/github-action@main
         with:
           appstrate-url: ${{ secrets.APPSTRATE_URL }}
           appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
           agent: "@myorg/anti-leak"
-          verdict-path: "verdict"
-          annotations-path: "findings"
+          verdict-path: "output.verdict"
+          annotations-path: "output.findings"
 
   architecture:
     runs-on: ubuntu-latest
@@ -154,7 +157,7 @@ jobs:
       pull-requests: write
       contents: read
     steps:
-      - uses: appstrate/github-action@v1
+      - uses: appstrate/github-action@main
         with:
           appstrate-url: ${{ secrets.APPSTRATE_URL }}
           appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
@@ -167,7 +170,7 @@ jobs:
       checks: write
       contents: read
     steps:
-      - uses: appstrate/github-action@v1
+      - uses: appstrate/github-action@main
         with:
           appstrate-url: ${{ secrets.APPSTRATE_URL }}
           appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
@@ -189,7 +192,7 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
     steps:
-      - uses: appstrate/github-action@v1
+      - uses: appstrate/github-action@main
         with:
           appstrate-url: ${{ secrets.APPSTRATE_URL }}
           appstrate-api-key: ${{ secrets.APPSTRATE_API_KEY }}
@@ -202,7 +205,7 @@ jobs:
 
 ```yaml
 steps:
-  - uses: appstrate/github-action@v1
+  - uses: appstrate/github-action@main
     id: review
     with:
       appstrate-url: ${{ secrets.APPSTRATE_URL }}
@@ -224,6 +227,12 @@ permissions:
   pull-requests: write   # Post PR comments
   contents: read         # Read PR metadata and file list
 ```
+
+A scope-restricted Appstrate API key needs two scopes, and both are used on
+every run: `agents:run` to trigger the agent, and `runs:read` for the live log
+stream and the final result. A key missing `runs:read` triggers the run and then
+fails the step when it reads the result. (A key created with no scopes carries
+its creator's full role access and needs nothing added.)
 
 ## License
 

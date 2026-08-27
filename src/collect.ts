@@ -52,7 +52,7 @@ export interface FileChange {
  * Collect PR metadata, changed file list, and comments via the GitHub API.
  * Supports both `pull_request` and `issue_comment` events.
  * Does NOT fetch patches/diffs — the agent should fetch those itself
- * via the GitHub provider to avoid env var size limits.
+ * via the GitHub integration to avoid env var size limits.
  * Returns null if not in a PR context.
  */
 export async function collectPRContext(token: string): Promise<PullRequestContext | null> {

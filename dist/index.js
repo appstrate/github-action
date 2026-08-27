@@ -31706,10 +31706,9 @@ function getInputs() {
     const agent = core.getInput("agent", { required: true });
     parseAgent(agent); // validate format early
     const agentVersion = core.getInput("agent-version") || undefined;
+    assertConfigRetired();
     const inputRaw = core.getInput("input");
     const input = inputRaw ? parseJson(inputRaw, "input") : undefined;
-    const configRaw = core.getInput("config");
-    const config = configRaw ? parseJson(configRaw, "config") : undefined;
     const timeout = parseInt(core.getInput("timeout") || "300", 10);
     if (isNaN(timeout) || timeout < 1) {
         throw new Error("timeout must be a positive integer");
@@ -31745,13 +31744,34 @@ function getInputs() {
         agent,
         agentVersion,
         input,
-        config,
         timeout,
         outputMode,
         failOn,
         mapping,
         githubToken,
     };
+}
+/**
+ * Fail loudly on the retired `config` input.
+ *
+ * `config` is gone from `action.yml`, but removing the declaration does NOT
+ * stop the value arriving: the runner treats an undeclared `with:` key as a
+ * WARNING, and still exports it as `INPUT_CONFIG`, so `getInput("config")`
+ * keeps returning it. A workflow that still passes `config:` would therefore
+ * have its agent parameters dropped without a trace, which is exactly the
+ * silent fallback a retirement is supposed to prevent.
+ *
+ * The platform retired the concept in appstrate/appstrate#1179, which collapsed
+ * manifest `config` into `input` (stored values now live per space behind
+ * `PUT /api/agents/{scope}/{name}/input-settings`). #1189 then made the launch
+ * body `.strict()`, so the field is a 400 on the wire as well.
+ */
+function assertConfigRetired() {
+    if (!core.getInput("config"))
+        return;
+    throw new Error("The `config` input was removed — agent parameters are now `input`. " +
+        "Move the JSON from `config:` to `input:`. Values fixed once per space are set " +
+        "on the platform (PUT /api/agents/{scope}/{name}/input-settings), not per run.");
 }
 /** Parse an agent string like "@scope/name" into its components. */
 function parseAgent(agent) {
@@ -31773,6 +31793,28 @@ function parseJson(raw, label) {
 ;// CONCATENATED MODULE: ./src/client.ts
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2025 Appstrate
+/**
+ * Render token usage as a one-line breakdown, or null when the platform
+ * reported none. Deliberately NOT a single total: `cache_read_input_tokens`
+ * and `input_tokens` are billed at different rates, so adding them would be a
+ * pricing judgement this action has no basis to make.
+ */
+function formatTokenUsage(usage) {
+    if (!usage)
+        return null;
+    const parts = [];
+    if (usage.input_tokens !== undefined)
+        parts.push(`${usage.input_tokens} in`);
+    if (usage.output_tokens !== undefined)
+        parts.push(`${usage.output_tokens} out`);
+    if (usage.cache_read_input_tokens !== undefined) {
+        parts.push(`${usage.cache_read_input_tokens} cache read`);
+    }
+    if (usage.cache_creation_input_tokens !== undefined) {
+        parts.push(`${usage.cache_creation_input_tokens} cache write`);
+    }
+    return parts.length > 0 ? parts.join(", ") : null;
+}
 /** HTTP client for the Appstrate API. Handles run triggering and polling. */
 class AppstrateClient {
     baseUrl;
@@ -31790,8 +31832,6 @@ class AppstrateClient {
         const body = {};
         if (options?.input)
             body.input = options.input;
-        if (options?.config)
-            body.config = options.config;
         const res = await fetch(url.toString(), {
             method: "POST",
             headers: {
@@ -31854,7 +31894,7 @@ var github = __nccwpck_require__(3228);
  * Collect PR metadata, changed file list, and comments via the GitHub API.
  * Supports both `pull_request` and `issue_comment` events.
  * Does NOT fetch patches/diffs — the agent should fetch those itself
- * via the GitHub provider to avoid env var size limits.
+ * via the GitHub integration to avoid env var size limits.
  * Returns null if not in a PR context.
  */
 async function collectPRContext(token) {
@@ -32212,8 +32252,14 @@ function truncate(str, max) {
 // Copyright 2025 Appstrate
 
 /**
- * Stream run progress via SSE, resolving when the run reaches a terminal state.
- * Returns null if SSE connection fails (caller should fallback to polling).
+ * Stream run progress via SSE, returning once the run reports a terminal
+ * status or the stream gives up (connection refused, timeout, parse failure).
+ *
+ * It reports no outcome on purpose: `run_update` frames carry a status and
+ * nothing else, and the stream has no replay — a backed-up subscriber is
+ * dropped and loses frames silently. The caller must therefore confirm the
+ * terminal state with `GET /runs/{id}` either way, which it does
+ * unconditionally.
  */
 async function streamUntilDone(baseUrl, apiKey, runId, timeoutMs, onLog, onStatusChange) {
     const url = new URL(`/api/realtime/runs/${encodeURIComponent(runId)}`, baseUrl);
@@ -32230,10 +32276,9 @@ async function streamUntilDone(baseUrl, apiKey, runId, timeoutMs, onLog, onStatu
         });
         if (!res.ok || !res.body) {
             core.info(`SSE connection failed (${res.status}), falling back to polling`);
-            return null;
+            return;
         }
         core.info("Connected to live stream");
-        let finalRun = null;
         for await (const event of parseSSE(res.body)) {
             if (event.event === "ping")
                 continue;
@@ -32244,11 +32289,8 @@ async function streamUntilDone(baseUrl, apiKey, runId, timeoutMs, onLog, onStatu
                 if (onStatusChange)
                     onStatusChange(payload.status);
                 const terminal = ["success", "failed", "timeout", "cancelled"];
-                if (terminal.includes(payload.status)) {
-                    // SSE payload may be stripped — we need the full run for result
-                    finalRun = { needsFetch: true };
+                if (terminal.includes(payload.status))
                     break;
-                }
             }
             if (event.event === "run_log") {
                 const payload = tryParse(event.data);
@@ -32260,19 +32302,13 @@ async function streamUntilDone(baseUrl, apiKey, runId, timeoutMs, onLog, onStatu
                 }
             }
         }
-        // Signal that we connected OK but need final fetch for full result
-        if (finalRun) {
-            return finalRun;
-        }
-        return null;
     }
     catch (err) {
         if (controller.signal.aborted) {
             core.info("SSE stream timed out");
-            return null;
+            return;
         }
         core.info(`SSE stream error: ${err instanceof Error ? err.message : err}, falling back to polling`);
-        return null;
     }
     finally {
         clearTimeout(timeout);
@@ -32397,16 +32433,16 @@ async function run() {
     const runId = await client.triggerRun(scope, name, {
         version: inputs.agentVersion,
         input: agentInput,
-        config: inputs.config,
     });
     core.info(`Run ID: ${runId}`);
     core.setOutput("run-id", runId);
     core.endGroup();
     // Wait for completion
     core.startGroup("Waiting for agent completion");
-    let result = await streamUntilDone(inputs.appstrateUrl, inputs.apiKey, runId, inputs.timeout * 1000, (message) => core.info(`  ${message}`), (status) => core.info(`Status: ${status}`));
-    // Always fetch final run for full result
-    result = await client.getRun(runId);
+    await streamUntilDone(inputs.appstrateUrl, inputs.apiKey, runId, inputs.timeout * 1000, (message) => core.info(`  ${message}`), (status) => core.info(`Status: ${status}`));
+    // The stream is a progress feed only — `run_update` never carries the run's
+    // result. Always fetch the run for the outcome.
+    let result = await client.getRun(runId);
     // If still in progress (SSE failed early), fallback to polling
     if (result.status === "pending" || result.status === "running") {
         core.info("Falling back to polling...");
@@ -32414,15 +32450,19 @@ async function run() {
             core.info(`Status: ${snapshot.status}`);
         });
     }
-    core.info(`Completed: ${result.status} (${result.duration}ms)`);
-    if (result.tokensUsed)
-        core.info(`Tokens: ${result.tokensUsed}`);
+    const duration = result.duration === null ? "" : `${result.duration}ms`;
+    core.info(`Completed: ${result.status}${duration ? ` (${duration})` : ""}`);
+    const tokens = formatTokenUsage(result.token_usage);
+    if (tokens)
+        core.info(`Tokens: ${tokens}`);
     if (result.cost)
         core.info(`Cost: $${result.cost.toFixed(4)}`);
     core.endGroup();
-    // Set outputs
+    // Set outputs. `duration` is null until the platform finalises the run, and
+    // an empty string is the honest rendering of "not reported" — "null" would
+    // read as a number to a workflow doing arithmetic on it.
     core.setOutput("status", result.status);
-    core.setOutput("duration", result.duration.toString());
+    core.setOutput("duration", result.duration === null ? "" : result.duration.toString());
     if (result.result) {
         core.setOutput("result", JSON.stringify(result.result));
     }
