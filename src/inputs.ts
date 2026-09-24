@@ -29,9 +29,6 @@ export function getInputs(): ActionInputs {
   const appstrateUrl = core.getInput("appstrate-url", { required: true }).replace(/\/+$/, "");
 
   const apiKey = core.getInput("appstrate-api-key", { required: true });
-  if (!apiKey.startsWith("ask_")) {
-    throw new Error("appstrate-api-key must start with 'ask_'");
-  }
 
   const agent = core.getInput("agent", { required: true });
   parseAgent(agent); // validate format early

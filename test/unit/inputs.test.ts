@@ -17,7 +17,7 @@ function setInputs(values: Record<string, string>): void {
 
 const REQUIRED = {
   "appstrate-url": "https://app.appstrate.dev",
-  "appstrate-api-key": "ask_test",
+  "appstrate-api-key": "apst_aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC12qUI4f",
   agent: "@myorg/anti-leak",
   "github-token": "ghp_test",
 };
@@ -34,7 +34,7 @@ describe("getInputs", () => {
     const inputs = getInputs();
 
     expect(inputs.appstrateUrl).toBe("https://app.appstrate.dev");
-    expect(inputs.apiKey).toBe("ask_test");
+    expect(inputs.apiKey).toBe("apst_aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC12qUI4f");
     expect(inputs.agent).toBe("@myorg/anti-leak");
     expect(inputs.githubToken).toBe("ghp_test");
     expect(inputs.timeout).toBe(300);
@@ -47,11 +47,6 @@ describe("getInputs", () => {
   it("strips trailing slashes from the instance URL", () => {
     setInputs({ ...REQUIRED, "appstrate-url": "https://app.appstrate.dev///" });
     expect(getInputs().appstrateUrl).toBe("https://app.appstrate.dev");
-  });
-
-  it("rejects an API key without the ask_ prefix", () => {
-    setInputs({ ...REQUIRED, "appstrate-api-key": "sk_live_nope" });
-    expect(() => getInputs()).toThrow("appstrate-api-key must start with 'ask_'");
   });
 
   it("rejects a malformed agent identifier", () => {

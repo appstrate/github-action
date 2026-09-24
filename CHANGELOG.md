@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- API keys are now `apst_…`. The platform refuses retired `ask_` keys with
+  `401 api_key_format_retired` (appstrate/appstrate#1536): create a new key in
+  Appstrate and update the secret.
+
 ### Removed
 
 - The `config` action input. The platform collapsed manifest `config` into
