@@ -22,7 +22,7 @@ Use `repoOwner`, `repoName`, and `prNumber` from your input.
 
 Scan every added line (lines starting with `+` in the diff) for:
 
-- **API keys and tokens**: AWS keys (`AKIA...`), GCP service account keys, GitHub tokens (`ghp_`, `gho_`, `ghs_`), Stripe keys (`sk_live_`, `pk_live_`), Slack tokens (`xoxb-`, `xoxp-`), generic patterns like `api_key`, `apiKey`, `API_KEY` followed by a value
+- **API keys and tokens**: AWS keys (`AKIA...`), GCP service account keys, GitHub tokens (`ghp_`, `gho_`, `ghs_`), Stripe keys (`sk_live_`, `pk_live_`), Slack tokens (`xoxb-`, `xoxp-`), Appstrate API keys (`apst_`), generic patterns like `api_key`, `apiKey`, `API_KEY` followed by a value
 - **Passwords and secrets**: Hardcoded passwords in connection strings, config files, or environment variable defaults. Strings assigned to variables named `password`, `secret`, `passwd`, `credential`
 - **Private keys and certificates**: RSA/EC/Ed25519 private keys (`-----BEGIN ... PRIVATE KEY-----`), PEM certificates with private material, PFX/P12 references with inline passwords
 - **Database credentials**: Connection strings with embedded passwords (`postgres://user:pass@`, `mongodb+srv://user:pass@`, `mysql://`), DSN strings

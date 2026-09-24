@@ -31692,17 +31692,41 @@ var __webpack_exports__ = {};
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(7484);
+;// CONCATENATED MODULE: ./src/api-key.ts
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Appstrate
+/**
+ * Appstrate API key format: `apst_` + 30 base62 random characters + a
+ * 6-character base62 checksum (41 characters in total). Only the shape is
+ * checked here: the platform validates the checksum before any lookup and
+ * answers a mistyped key with a 401.
+ */
+const API_KEY_RE = /^apst_[0-9A-Za-z]{36}$/;
+const RETIRED_PREFIX = "ask_";
+/**
+ * Refuse a key the platform would refuse, before any request is made: the
+ * retired `ask_` format (the server answers `401 api_key_format_retired`), and
+ * a key that does not have the `apst_` shape.
+ */
+function assertApiKey(apiKey) {
+    if (apiKey.startsWith(RETIRED_PREFIX)) {
+        throw new Error("API key format retired: create a new key (apst_…) in Appstrate and update the secret");
+    }
+    if (!API_KEY_RE.test(apiKey)) {
+        throw new Error("appstrate-api-key is not an Appstrate API key: expected apst_ followed by 36 letters or digits");
+    }
+}
+
 ;// CONCATENATED MODULE: ./src/inputs.ts
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2025 Appstrate
+
 
 /** Read and validate all action inputs from the workflow environment. */
 function getInputs() {
     const appstrateUrl = core.getInput("appstrate-url", { required: true }).replace(/\/+$/, "");
     const apiKey = core.getInput("appstrate-api-key", { required: true });
-    if (!apiKey.startsWith("ask_")) {
-        throw new Error("appstrate-api-key must start with 'ask_'");
-    }
+    assertApiKey(apiKey);
     const agent = core.getInput("agent", { required: true });
     parseAgent(agent); // validate format early
     const agentVersion = core.getInput("agent-version") || undefined;

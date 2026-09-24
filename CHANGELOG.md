@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `appstrate-api-key` accepts only the platform's checksummed `apst_`
+  keys** (appstrate/appstrate#1536). The platform no longer accepts `ask_` keys
+  and answers them with `401 api_key_format_retired`. They cannot be converted,
+  so **replace the secret with a new key created in Appstrate**. The action now
+  refuses an `ask_` key before it calls the platform, with the message "API key
+  format retired: create a new key (apst_…) in Appstrate and update the
+  secret". It also checks the new key's shape (`apst_` + 36 base62
+  characters); the checksum is left to the platform, which refuses a mistyped
+  key with a `401`.
+
 ### Removed
 
 - The `config` action input. The platform collapsed manifest `config` into

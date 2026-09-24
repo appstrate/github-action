@@ -24,7 +24,7 @@ On `pull_request` events, the action automatically collects PR metadata and the 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `appstrate-url` | Yes | — | Appstrate instance URL |
-| `appstrate-api-key` | Yes | — | API key (`ask_...`) |
+| `appstrate-api-key` | Yes | — | API key (`apst_...`) — see [API key](#api-key) |
 | `agent` | Yes | — | Agent to run (`@scope/name`) |
 | `agent-version` | No | latest | Version, dist-tag, or semver range |
 | `input` | No | — | Additional agent input (JSON string, merged with PR context) |
@@ -227,6 +227,15 @@ permissions:
   pull-requests: write   # Post PR comments
   contents: read         # Read PR metadata and file list
 ```
+
+### API key
+
+Create the key in Appstrate (Settings → API keys) and store it as a repository
+secret. Keys look like `apst_` followed by 36 letters or digits; the action
+checks that shape before calling the platform, so a truncated secret fails the
+step at once. Keys in the older `ask_` format no longer authenticate — the
+platform answers `401 api_key_format_retired` — and the action refuses them up
+front: create a new key and replace the secret's value.
 
 A scope-restricted Appstrate API key needs two scopes, and both are used on
 every run: `agents:run` to trigger the agent, and `runs:read` for the live log
