@@ -9,7 +9,7 @@ inputs:
     description: "Appstrate instance URL (e.g. https://app.appstrate.dev)"
     required: true
   appstrate-api-key:
-    description: "Appstrate API key (apst_...). Keys in the retired ask_ format are refused"
+    description: "Appstrate API key (apst_...)"
     required: true
   agent:
     description: "Agent to run (@scope/name)"

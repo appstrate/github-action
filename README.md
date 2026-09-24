@@ -230,12 +230,7 @@ permissions:
 
 ### API key
 
-Create the key in Appstrate (Settings → API keys) and store it as a repository
-secret. Keys look like `apst_` followed by 36 letters or digits; the action
-checks that shape before calling the platform, so a truncated secret fails the
-step at once. Keys in the older `ask_` format no longer authenticate — the
-platform answers `401 api_key_format_retired` — and the action refuses them up
-front: create a new key and replace the secret's value.
+Create the key in Appstrate (Settings → API keys) and store it as a repository secret.
 
 A scope-restricted Appstrate API key needs two scopes, and both are used on
 every run: `agents:run` to trigger the agent, and `runs:read` for the live log

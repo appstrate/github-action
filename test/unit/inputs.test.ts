@@ -49,18 +49,6 @@ describe("getInputs", () => {
     expect(getInputs().appstrateUrl).toBe("https://app.appstrate.dev");
   });
 
-  it("refuses a retired ask_ key, naming the fix", () => {
-    setInputs({ ...REQUIRED, "appstrate-api-key": "ask_0123456789abcdef" });
-    expect(() => getInputs()).toThrow(
-      "API key format retired: create a new key (apst_…) in Appstrate and update the secret"
-    );
-  });
-
-  it("rejects a key that is not an Appstrate key", () => {
-    setInputs({ ...REQUIRED, "appstrate-api-key": "sk_live_nope" });
-    expect(() => getInputs()).toThrow("appstrate-api-key is not an Appstrate API key");
-  });
-
   it("rejects a malformed agent identifier", () => {
     setInputs({ ...REQUIRED, agent: "myorg/anti-leak" });
     expect(() => getInputs()).toThrow("Invalid agent format");
